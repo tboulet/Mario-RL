@@ -1,0 +1,158 @@
+from copy import copy, deepcopy
+import numpy as np
+import math
+import gym
+import sys
+import random
+import matplotlib.pyplot as plt
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import torchvision.transforms as T
+
+from MEMORY import Memory
+from CONFIGS import DQN_CONFIG
+from rl_algos.AGENT import AGENT
+
+class DQN(AGENT):
+
+    def __init__(self, action_value : nn.Module, metrics = [], config = DQN_CONFIG):
+        super().__init__(config)
+        self.config = config
+        self.memory = Memory(MEMORY_KEYS = ['observation', 'action','reward', 'done', 'next_observation'])
+        self.step = 0
+        self.last_action = None
+        
+        self.action_value = action_value
+        self.action_value_target = deepcopy(action_value)
+        self.opt = optim.Adam(lr = 1e-4, params=action_value.parameters())
+        self.f_eps = lambda s : max(s.exploration_final, s.exploration_initial + (s.exploration_final - s.exploration_initial) * (s.step / s.exploration_timesteps))
+        self.metrics = list(Metric(self) for Metric in metrics)
+        
+        
+    def act(self, observation, greedy=False, mask = None):
+        '''Ask the agent to take a decision given an observation.
+        observation : an (n_obs,) shaped observation.
+        greedy : whether the agent always choose the best Q values according to himself.
+        mask : a binary list containing 1 where corresponding actions are forbidden.
+        return : an int corresponding to an action
+        '''
+
+        #Skip frames:
+        if self.step % self.frames_skipped != 0:
+            return self.last_action
+        
+        #Batching observation
+        observations = torch.Tensor(observation)
+        observations = observations.unsqueeze(0) # (1, observation_space)
+    
+        # Q(s)
+        Q = self.action_value(observations) # (1, action_space)
+
+        #Greedy policy
+        epsilon = self.f_eps(self)
+        if greedy or np.random.rand() > epsilon:
+            with torch.no_grad():
+                if mask is not None:
+                    Q = Q - 10000.0 * torch.Tensor([mask])      # So that forbidden action won't ever be selected by the argmax.
+                action = torch.argmax(Q, axis = -1).numpy()[0]  
+    
+        #Exploration
+        else :
+            if mask is None:
+                action = torch.randint(size = (1,), low = 0, high = Q.shape[-1]).numpy()[0]     #Choose random action
+            else:
+                authorized_actions = [i for i in range(len(mask)) if mask[i] == 0]              #Choose random action among authorized ones
+                action = random.choice(authorized_actions)
+    
+        # Action
+        self.last_action = action
+        return action
+
+
+    def learn(self):
+        '''Do one step of learning.
+        return : metrics, a list of metrics computed during this learning step.
+        '''
+        metrics = list()
+        self.step += 1
+        
+        #Skip frames:
+        if self.step % self.frames_skipped != 0:
+            return metrics
+
+        #Learn only every train_freq steps
+        if self.step % self.train_freq != 0:
+            return metrics
+
+        #Learn only after learning_starts steps 
+        if self.step <= self.learning_starts:
+            return metrics
+
+        #Sample trajectories
+        observations, actions, rewards, dones, next_observations = self.memory.sample(
+            sample_size=self.sample_size,
+            method = "random",
+            func = lambda arr : torch.Tensor(arr),
+        )
+        actions = actions.to(dtype = torch.int64)
+        #print(observations, actions, rewards, dones, sep = '\n\n')
+    
+
+        #Scaling the rewards
+        if self.reward_scaler is not None:
+            rewards = rewards / self.reward_scaler
+        
+        # Estimated Q values
+        if not self.double_q_learning:
+            #Simple learning : Q(s,a) = r + gamma * max_a'(Q_target(s_next, a')) * (1-d)  | s_next and r being the result of action a taken in observation s
+            future_Q_s_a = self.action_value_target(next_observations)
+            future_Q_s, bests_a = torch.max(future_Q_s_a, dim = 1, keepdim=True)
+            Q_s_predicted = rewards + self.gamma * future_Q_s * (1 - dones)  #(n_sampled,)
+        else:
+            #Double Q Learning : Q(s,a) = r + gamma * Q_target(s_next, argmax_a'(Q(s_next, a')))
+            future_Q_s_a = self.action_value(next_observations)
+            future_Q_s, bests_a = torch.max(future_Q_s_a, dim = 1, keepdim=True)
+            future_Q_s_a_target = self.action_value_target(next_observations)
+            future_Q_s_target = torch.gather(future_Q_s_a_target, dim = 1, index= bests_a)
+            Q_s_predicted = rewards + self.gamma * future_Q_s_target * (1 - dones)
+        
+        #Gradient descent on Q network
+        criterion = nn.SmoothL1Loss()
+        for _ in range(self.gradients_steps):
+            self.opt.zero_grad()
+            Q_s_a = self.action_value(observations)
+            Q_s = Q_s_a.gather(dim = 1, index = actions)
+            loss = criterion(Q_s_predicted, Q_s)
+            loss.backward(retain_graph = True)
+            if self.clipping is not None:
+                for param in self.action_value.parameters():
+                    param.grad.data.clamp_(-self.clipping, self.clipping)
+            self.opt.step() 
+        
+        #Update target network
+        if self.update_method == "periodic":
+            if self.step % self.target_update_interval == 0:
+                self.action_value_target = deepcopy(self.action_value)
+        elif self.update_method == "soft":
+            for phi, phi_target in zip(self.action_value.parameters(), self.action_value_target.parameters()):
+                phi.data = self.tau * phi.data + (1-self.tau) * phi_target.data
+            
+        else:
+            print(f"Error : update_method {self.update_method} not implemented.")
+            sys.exit()
+
+        #Metrics
+        return list(metric.on_learn(critic_loss = loss.detach().numpy(), value = Q_s.mean().detach().numpy()) for metric in self.metrics)
+
+    def remember(self, observation, action, reward, done, next_observation, info={}, **param):
+        '''Save elements inside memory.
+        *arguments : elements to remember, as numerous and in the same order as in self.memory.MEMORY_KEYS
+        return : metrics, a list of metrics computed during this remembering step.
+        '''
+        self.memory.remember((observation, action, reward, done, next_observation, info))
+        return list(metric.on_remember(obs = observation, action = action, reward = reward, done = done, next_obs = next_observation) for metric in self.metrics)
+
+    

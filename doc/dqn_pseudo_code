@@ -1,0 +1,49 @@
+Algorithm DQN_Learning(memory, env, Q_net_arch 
+							learning_rate = 0.001, 
+							buffer_size = 1000000, 
+							learning_starts = 100, 
+							batch_size = 32, 
+							tau = 0.99, 
+							gamma = 0.99,
+							train_freq = 4,
+							gradient_steps = 1,
+							target_update_interval = 500
+							exploration_fraction = 20%,		#Eps will decrease linearly from inital to final value
+							exploration_initial_eps = 0.1,
+							exploration_final_eps = 0,
+							max_grad_norm = 10,
+
+							total_timesteps = 10 000)
+
+set env, Q network arch. as Q_net_arch, φ random, φ_target = φ, s = env.reset(), replay buffer B as empty, eps = exploration_initial_eps
+
+for total_timesteps steps:
+	
+	with probability eps:
+		choose action a ~ random in action space A
+	else:
+		choose action a = argmax_a'(Q_φ(s,a'))
+	play action a
+	observe state s', done d and reward r
+	add trajectory (s,a,r,s',d) in buffer B
+	if buffer size exceed buffer_size : 
+		remove older trajectory
+	set s = s'
+	if d:
+		reset env
+		set s = s0
+		
+	if step < learning_steps:
+		continue without training below
+
+	every train_freq steps (or episodes if train_freq = ("episode", int)) :
+		sample batch_size trajectories (s,a,r,s',d)i from B
+		for gradient_steps steps:
+				compute gradient = grad_φ(Sum_i(Loss( r + gamma * (1-d) * max_a'(Q_φ_target(s',a')) - Q(s,a) )))
+				clip gradient with max_grad_norm 
+				φ <- φ - learning_rate * gradient
+
+	every target_update_interval steps:
+		φ_target <- tau*φ + (1-tau)*φ_target
+
+	modify eps, learning_rate

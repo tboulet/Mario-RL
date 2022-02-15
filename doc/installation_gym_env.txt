@@ -1,0 +1,16 @@
+Here is what I do to install gym envirronements with pip on windows (with python 3.9) :
+
+GYM:
+pip install gym
+
+BOX2D:
+install SWIG, tutorial : https://www.youtube.com/watch?v=HDD9QqLtAws
+pip install gym
+pip install box2d-py
+
+ATARI:
+pip install -f https://github.com/Kojoley/atari-py/releases atari_py
+pip install gym[atari]
+pip install gym[all]
+
+MUJOCO:

@@ -1,0 +1,14 @@
+torch
+torchvision
+torchaudio
+numpy
+matplotlib
+moviepy
+
+stable-baselines3[extra]
+gym
+gym-super-mario-bros
+box2d-py
+pyglet
+imageio-ffmpeg
+wandb
