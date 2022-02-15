@@ -1,29 +1,28 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import torchvision.transforms as T
-
 import sys
 import math
 import random
 import matplotlib.pyplot as plt
 import numpy as np
-
+#Torch for deep learning
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import torchvision.transforms as T
+#Gym for environments, WandB for feedback
 import gym
 from gym.wrappers import Monitor
 import wandb
 
-from div.render import render_agent
-from div.run import run 
+#Utils
 from div.utils import *
-
-from MEMORY import Memory
 from METRICS import *
-
+#RL agents
 from rl_algos.DQN import DQN
 from rl_algos.REINFORCE import REINFORCE
 
+
+#Wrapper for SMB env
 class ObservationMarioWrapper(gym.ObservationWrapper):
     def __init__(self, env):
         super().__init__(env)
@@ -38,6 +37,13 @@ class ObservationMarioWrapper(gym.ObservationWrapper):
 def run(agent, env, episodes, wandb_cb = True, 
         n_render = 20
         ):
+    '''Train an agent on an env.
+    agent : an AGENT instance (with methods act, learn and remember implemented)
+    env : a gym env (with methods reset, step, render)
+    episodes : int, number of episodes of training
+    wandb_cb : bool, whether metrics are logged in WandB
+    n_render : int, one episode on n_render is rendered
+    '''
     
     print("Run starts.")
 ################### FEEDBACK #####################
@@ -58,10 +64,10 @@ def run(agent, env, episodes, wandb_cb = True,
         obs = env.reset()
         
         while not done:
-            action = agent.act(obs)
-            next_obs, reward, done, info = env.step(action)
-            metrics1 = agent.remember(obs, action, reward, done, next_obs, info)
-            metrics2 = agent.learn()
+            action = agent.act(obs)                                                 #Agent acts
+            next_obs, reward, done, info = env.step(action)                         #Env reacts
+            metrics1 = agent.remember(obs, action, reward, done, next_obs, info)    #Agent saves previous transition in its memory
+            metrics2 = agent.learn()                                                #Agent learn (eventually)
             
             ###### Feedback ######
             print(f"Episode n°{episode} - Total step n°{agent.step} ...", end = '\r')
@@ -72,13 +78,13 @@ def run(agent, env, episodes, wandb_cb = True,
                     wandb.log(metric, step = agent.step)
             ######  End Feedback ######  
             
-            #If episode ended.
+            #If episode ended, reset env, else change state
             if done:
                 break
             else:
                 obs = next_obs
     
-    if wandb_cb: run.finish()
+    if wandb_cb: run.finish()   #End wandb run.
     print("End of run.")
     
     
@@ -88,43 +94,24 @@ if __name__ == "__main__":
     #ENV
     env = load_smb_env(obs_complexity=1, action_complexity=1)
     env = ObservationMarioWrapper(env)
-
-    #MEMORY
-    MEMORY_KEYS = ['observation', 'action','reward', 'done', 'next_observation']
+    
+    n_actions = env.action_space.n
+    height, width, n_channels = env.observation_space.shape 
+    
     #METRICS
     metrics = [Metric_Total_Reward, Metric_Epsilon, Metric_Action_Frequencies]
     
     #ACTOR PI
-    n_channels = 3
-    n_actions = env.action_space.n
     actor = nn.Sequential(
-        nn.Conv2d(n_channels, 8, 3),
-        nn.Tanh(),
-        nn.Conv2d(8, 8, 3),
         nn.Flatten(),
-        nn.Linear(475776, n_actions),
+        nn.Linear(height * width * n_channels, n_actions),
         nn.Softmax(),
     )
     
-    #CRITIC Q/V
+    #CRITIC Q
     action_value = nn.Sequential(
-        nn.Linear(in_features=env.observation_space.shape[0], out_features=32),
-        nn.Tanh(),
-        nn.Linear(32, 32),
-        nn.Tanh(),
-        nn.Linear(32, 32),
-        nn.Tanh(),
-        nn.Linear(32, out_features=env.action_space.n),
-    )
-    n_actions = env.action_space.n
-    height, width, n_channels = env.observation_space.shape
-    
-    action_value = nn.Sequential(
-        nn.Conv2d(n_channels, 8, 3),
-        nn.Tanh(),
-        nn.Conv2d(8, 8, 3),
         nn.Flatten(),
-        nn.Linear(475776, n_actions),
+        nn.Linear(height * width * n_channels, n_actions),
     )
 
     #AGENT
@@ -132,7 +119,12 @@ if __name__ == "__main__":
     reinforce = REINFORCE(actor=actor, metrics=metrics)
 
     #RUN
-    run(dqn, env, episodes=1000, wandb_cb = False)    
+    run(dqn, 
+        env, 
+        episodes=1000, 
+        wandb_cb = False,
+        n_render=1,
+        )    
 
 
 
