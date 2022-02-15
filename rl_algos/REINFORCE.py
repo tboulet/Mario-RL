@@ -42,11 +42,11 @@ class REINFORCE():
         self.metrics = list(Metric(self) for Metric in metrics)
         
         
-    def act(self, observation, mask = None):
+    def act(self, observation, mask = None, np2torch = True):
         '''Ask the agent to take a decision given an observation.
-        observation : an (n_obs,) shaped observation.
-        greedy : whether the agent always choose the best Q values according to himself.
+        observation : an (n_obs,) shaped nummpy observation.
         mask : a binary list containing 1 where corresponding actions are forbidden.
+        np2torch : bool, True if observation is a numpy array and not already a torch tensor
         return : an int corresponding to an action
         '''
 
@@ -55,12 +55,13 @@ class REINFORCE():
             return self.last_action
         
         #Batching observation
-        observations = torch.Tensor(observation)
-        observations = observations.unsqueeze(0) # (1, observation_space)
+        observation = torch.Tensor(observation)
+        observations = observation.unsqueeze(0) # (1, observation_space)
         probs = self.policy(observations)        # (1, n_actions)
         distribs = Categorical(probs = probs)    
         actions = distribs.sample()
         action = actions.numpy()[0]
+        
         
         # Action
         self.last_action = action

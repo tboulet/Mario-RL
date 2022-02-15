@@ -1,6 +1,7 @@
 torch
 torchvision
 torchaudio
+torchsummary
 numpy
 matplotlib
 moviepy

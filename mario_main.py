@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
+from torchsummary import summary
 #Gym for environments, WandB for feedback
 import gym
 from gym.wrappers import Monitor
@@ -16,22 +17,11 @@ import wandb
 
 #Utils
 from div.utils import *
+from env_mario import load_smb_env
 from METRICS import *
 #RL agents
 from rl_algos.DQN import DQN
 from rl_algos.REINFORCE import REINFORCE
-
-
-#Wrapper for SMB env
-class ObservationMarioWrapper(gym.ObservationWrapper):
-    def __init__(self, env):
-        super().__init__(env)
-    
-    def observation(self, obs):
-        obs = np.swapaxes(obs, 0, 2)
-        obs = np.array(obs)
-        return obs
-
 
 
 def run(agent, env, episodes, wandb_cb = True, 
@@ -64,8 +54,10 @@ def run(agent, env, episodes, wandb_cb = True,
         obs = env.reset()
         
         while not done:
+            
             action = agent.act(obs)                                                 #Agent acts
             next_obs, reward, done, info = env.step(action)                         #Env reacts
+            if info["life"] <= 1: done = True
             metrics1 = agent.remember(obs, action, reward, done, next_obs, info)    #Agent saves previous transition in its memory
             metrics2 = agent.learn()                                                #Agent learn (eventually)
             
@@ -92,35 +84,53 @@ def run(agent, env, episodes, wandb_cb = True,
 
 if __name__ == "__main__":
     #ENV
-    env = load_smb_env(obs_complexity=1, action_complexity=1)
-    env = ObservationMarioWrapper(env)
+    n_side = 84
+    n_stack = 4
+    env = load_smb_env(obs_complexity=1, n_side = n_side, n_stack = n_stack)
+    
     
     n_actions = env.action_space.n
-    height, width, n_channels = env.observation_space.shape 
-    
+
     #METRICS
     metrics = [Metric_Total_Reward, Metric_Epsilon, Metric_Action_Frequencies]
     
     #ACTOR PI
-    actor = nn.Sequential(
-        nn.Flatten(),
-        nn.Linear(height * width * n_channels, n_actions),
-        nn.Softmax(),
-    )
+    actor =  nn.Sequential(
+            nn.Conv2d(in_channels=n_stack, out_channels=32, kernel_size=8, stride=4),   #4,84,84 to 
+            nn.ReLU(),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(3136, 512),
+            nn.ReLU(),
+            nn.Linear(512, n_actions),
+            nn.Softmax(),
+        )
     
     #CRITIC Q
-    action_value = nn.Sequential(
-        nn.Flatten(),
-        nn.Linear(height * width * n_channels, n_actions),
-    )
+    action_value =  nn.Sequential(
+            nn.Conv2d(in_channels=n_stack, out_channels=32, kernel_size=8, stride=4),   #4,84,84 to 
+            nn.ReLU(),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(3136, 512),
+            nn.ReLU(),
+            nn.Linear(512, n_actions),
+        )
+    #summary(action_value, (n_stack, n_side, n_side))
 
     #AGENT
     dqn = DQN(action_value=action_value, metrics = metrics)
     reinforce = REINFORCE(actor=actor, metrics=metrics)
 
     #RUN
-    run(dqn, 
-        env, 
+    run(reinforce, 
+        env = env, 
         episodes=1000, 
         wandb_cb = False,
         n_render=1,
