@@ -132,3 +132,22 @@ class Metric_Time_Count(Metric):
     
     def on_learn(self, **kwargs):
         return {"time" : round((time() - self.t0) / 60, 2)}
+    
+        
+class Metric_Performances(Metric):
+    def __init__(self, agent):
+        super().__init__()
+        self.agent = agent
+        self.t0 = time()
+    def on_x(self, step_of_training : str):
+        dur = time() - self.t0
+        self.t0 = time()
+        if self.agent.step < 10:
+            return dict()
+        return {step_of_training: dur}
+    def on_act(self, **kwargs):
+        return self.on_x("time : ACTING")
+    def on_remember(self, **kwargs):
+        return self.on_x("time : ENV REACTING + REMEMBERING")
+    def on_learn(self, **kwargs):
+        return self.on_x("time : SAMPLING + LEARNING")

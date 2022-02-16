@@ -20,7 +20,7 @@ from rl_algos.AGENT import AGENT
 class DQN(AGENT):
 
     def __init__(self, action_value : nn.Module, metrics = [], config = DQN_CONFIG):
-        metrics = [MetricS_On_Learn,Metric_Epsilon]
+        metrics = [MetricS_On_Learn, Metric_Epsilon, Metric_Performances]
         super().__init__(config, metrics)
         self.memory = Memory(MEMORY_KEYS = ['observation', 'action','reward', 'done', 'next_observation'])
         self.last_action = None
@@ -65,7 +65,7 @@ class DQN(AGENT):
             else:
                 authorized_actions = [i for i in range(len(mask)) if mask[i] == 0]              #Choose random action among authorized ones
                 action = random.choice(authorized_actions)
-    
+        
         #Save metrics
         self.add_metric(mode = 'act')
     
@@ -96,7 +96,7 @@ class DQN(AGENT):
         observations, actions, rewards, dones, next_observations = self.memory.sample(
             sample_size=self.sample_size,
             method = "random",
-            func = lambda arr : torch.Tensor(arr),
+            # func = lambda arr : torch.Tensor(arr),
         )
         actions = actions.to(dtype = torch.int64)
         

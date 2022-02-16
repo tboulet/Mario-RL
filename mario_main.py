@@ -48,18 +48,16 @@ def run(agent, env, steps, wandb_cb = True,
                         config=agent.config,
         )
 ##################### END FEEDBACK ###################
-
     episode = 1
     step = 0
     while step < steps:
         done = False
         obs = env.reset()
         
+        
         while not done and step < steps:
-            
             action = agent.act(obs)                                                 #Agent acts
-            next_obs, reward, done, info = env.step(action)                         #Env reacts
-            # next_obs, reward, done, info = 
+            next_obs, reward, done, info = env.step(action)                         #Env reacts            
             agent.remember(obs, action, reward, done, next_obs, info)    #Agent saves previous transition in its memory
             agent.learn()                                                #Agent learn (eventually)
             
@@ -67,11 +65,10 @@ def run(agent, env, steps, wandb_cb = True,
             print(f"Episode n°{episode} - Total step n°{step} ...", end = '\r')
             if episode % n_render == 0:
                 env.render()
-            for metric in agent.metrics_saved:
-                if wandb_cb:
-                    wandb.log(metric, step = step)
+            if wandb_cb:
+                agent.log_metrics()
             ######  End Feedback ######  
-            
+
             #If episode ended, reset env, else change state
             if done:
                 step += 1
@@ -134,12 +131,9 @@ if __name__ == "__main__":
     reinforce = REINFORCE(actor=actor, metrics=metrics)
 
     #RUN
-    # cProfile.run("run(dqn, env = env, steps=20,  wandb_cb = False, n_render=1)", sort=-1)
-    # s()
-
     run(dqn, 
         env = env, 
-        steps=2000, 
+        steps=1000, 
         wandb_cb = True,
         n_render=1,
         )    

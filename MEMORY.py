@@ -17,12 +17,14 @@ class Memory():
         transition : a tuple of element corresponding to self.MEMORY_KEYS.
         '''
         for val, key in zip(transition, self.MEMORY_KEYS):
-            val = torch.Tensor([val])
+            if type(val) == bool:
+                val = int(val)
+            val = torch.tensor(val)
+            val = torch.unsqueeze(val, 0)
             if len(val.shape) == 1:
                 val = torch.unsqueeze(val, 0)
-                
             try:
-                self.trajectory[key] = torch.concat((self.trajectory[key], val), axis = 0)  #(memory_lenght, n_?)
+                self.trajectory[key] = torch.concat((val, self.trajectory[key]), axis = 0)  #(memory_lenght, n_?)
             except KeyError:
                 self.trajectory[key] = val
         self.memory_len = len(self.trajectory[self.MEMORY_KEYS[0]])

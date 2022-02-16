@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import wandb
 from random import randint
 
 
@@ -34,18 +35,42 @@ class AGENT(ABC):
         if mode == 'learn':
             for metric in self.metrics:
                 self.metrics_saved.append(metric.on_learn(**values))
-        
+    
+    def log_metrics(self):
+        for metric in self.metrics_saved:
+            wandb.log(metric, step = self.step)
+        self.metrics_saved = list()
 
+
+
+#Use the following agent as a model for minimum restrictions on AGENT subclasses :
 class RANDOM_AGENT(AGENT):
+    '''A random agent evolving in a discrete environment.
+    n_actions : int, n of action space
+    '''
     def __init__(self, n_actions):
-        self.n_actions = n_actions
         super().__init__()
+        self.n_actions = n_actions  #For RandomAgent only
     
     def act(self, obs):
-        return randint(0, self.n_actions - 1)
+        #Choose action here
+        action = randint(0, self.n_actions - 1)
+        #Save metrics
+        values = {"my_metric_name1" : 22, "my_metric_name2" : 42}
+        self.add_metric(mode = 'act', **values)
+        
+        return action
     
     def learn(self):
-        return dict()
+        #Learn here
+        ...
+        #Save metrics
+        values = {"my_metric_name1" : 22, "my_metric_name2" : 42}
+        self.add_metric(mode = 'learn', **values)
     
     def remember(self, **kwargs):
-        return dict()
+        #Save kwargs in memory here
+        ... 
+        #Save metrics
+        values = {"my_metric_name1" : 22, "my_metric_name2" : 42}
+        self.add_metric(mode = 'remember', **values)
