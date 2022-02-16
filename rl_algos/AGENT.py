@@ -4,14 +4,17 @@ from random import randint
 
 class AGENT(ABC):
     
-    def __init__(self, config = dict()):
+    def __init__(self, config = dict(), metrics = list()):
         self.step = 0
+        self.metrics = [Metric(self) for Metric in metrics]
+        self.config = config
         for name, value in config.items():
             setattr(self, name, value)
-    
+        self.metrics_saved = list()
+        
     @abstractmethod
-    def act(self, obs):
-        pass
+    def act(self, action, values):
+        return action
     
     @abstractmethod
     def learn(self):
@@ -21,6 +24,17 @@ class AGENT(ABC):
     def remember(self, **kwargs):
         pass
     
+    def add_metric(self, mode, **values):
+        if mode == 'act':
+            for metric in self.metrics:
+                self.metrics_saved.append(metric.on_act(**values))
+        if mode == 'remember':
+            for metric in self.metrics:
+                self.metrics_saved.append(metric.on_remember(**values))
+        if mode == 'learn':
+            for metric in self.metrics:
+                self.metrics_saved.append(metric.on_learn(**values))
+        
 
 class RANDOM_AGENT(AGENT):
     def __init__(self, n_actions):
@@ -30,7 +44,7 @@ class RANDOM_AGENT(AGENT):
     def act(self, obs):
         return randint(0, self.n_actions - 1)
     
-    def learn():
+    def learn(self):
         return dict()
     
     def remember(self, **kwargs):

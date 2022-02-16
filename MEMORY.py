@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 class Memory():
     '''Memory class for keeping observations, actions, rewards, ... in memory.
@@ -16,15 +17,18 @@ class Memory():
         transition : a tuple of element corresponding to self.MEMORY_KEYS.
         '''
         for val, key in zip(transition, self.MEMORY_KEYS):
-            val = np.array(val)
-            batched_val = val.reshape((1, -1))      # (1, n_?)      
-            #Add it to the already existing elements. If no elements, create the value for it.      
+            val = torch.Tensor([val])
+            if len(val.shape) == 1:
+                val = torch.unsqueeze(val, 0)
+                
             try:
-                self.trajectory[key] = np.concatenate((self.trajectory[key], batched_val), axis = 0)  #(memory_lenght, n_?)
+                self.trajectory[key] = torch.concat((self.trajectory[key], val), axis = 0)  #(memory_lenght, n_?)
             except KeyError:
-                self.trajectory[key] = batched_val
+                self.trajectory[key] = val
         self.memory_len = len(self.trajectory[self.MEMORY_KEYS[0]])
-
+        
+                
+    
     def sample(self, sample_size=None, pos_start=None, method='last', func = None):
         '''Samples several transitions from memory, using different methods.
         sample_size : the number of transitions to sample, default all.

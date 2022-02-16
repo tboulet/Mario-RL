@@ -10,7 +10,10 @@ class Metric():
     
     def on_remember(self, **kwargs):
         return dict()
-
+    
+    def on_act(self, **kwargs):
+        return dict()
+    
 
 class MetricS_On_Learn(Metric):
     metric_names = ["value", "actor_loss", "critic_loss", ]
@@ -73,7 +76,7 @@ class Metric_Critic_Value_Unnormalized(Metric):
                 return {"value_unnormalized" : kwargs["value"]}
         except KeyError:
             return dict()
-        
+
 
 class Metric_Action_Frequencies(Metric):
     def __init__(self, agent):

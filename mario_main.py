@@ -1,5 +1,6 @@
 import sys
 import math
+import cProfile
 import random
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,7 +25,7 @@ from rl_algos.DQN import DQN
 from rl_algos.REINFORCE import REINFORCE
 
 
-def run(agent, env, episodes, wandb_cb = True, 
+def run(agent, env, steps, wandb_cb = True, 
         n_render = 20
         ):
     '''Train an agent on an env.
@@ -48,32 +49,36 @@ def run(agent, env, episodes, wandb_cb = True,
         )
 ##################### END FEEDBACK ###################
 
-        
-    for episode in range(1, episodes+1):
+    episode = 1
+    step = 0
+    while step < steps:
         done = False
         obs = env.reset()
         
-        while not done:
+        while not done and step < steps:
             
             action = agent.act(obs)                                                 #Agent acts
             next_obs, reward, done, info = env.step(action)                         #Env reacts
-            if info["life"] <= 1: done = True
-            metrics1 = agent.remember(obs, action, reward, done, next_obs, info)    #Agent saves previous transition in its memory
-            metrics2 = agent.learn()                                                #Agent learn (eventually)
+            # next_obs, reward, done, info = 
+            agent.remember(obs, action, reward, done, next_obs, info)    #Agent saves previous transition in its memory
+            agent.learn()                                                #Agent learn (eventually)
             
             ###### Feedback ######
-            print(f"Episode n°{episode} - Total step n°{agent.step} ...", end = '\r')
+            print(f"Episode n°{episode} - Total step n°{step} ...", end = '\r')
             if episode % n_render == 0:
                 env.render()
-            for metric in metrics1 + metrics2:
+            for metric in agent.metrics_saved:
                 if wandb_cb:
-                    wandb.log(metric, step = agent.step)
+                    wandb.log(metric, step = step)
             ######  End Feedback ######  
             
             #If episode ended, reset env, else change state
             if done:
+                step += 1
+                episode += 1
                 break
             else:
+                step += 1
                 obs = next_obs
     
     if wandb_cb: run.finish()   #End wandb run.
@@ -92,7 +97,7 @@ if __name__ == "__main__":
     n_actions = env.action_space.n
 
     #METRICS
-    metrics = [Metric_Total_Reward, Metric_Epsilon, Metric_Action_Frequencies]
+    metrics = [Metric_Total_Reward, Metric_Epsilon, Metric_Action_Frequencies, MetricS_On_Learn]
     
     #ACTOR PI
     actor =  nn.Sequential(
@@ -125,16 +130,21 @@ if __name__ == "__main__":
     #summary(action_value, (n_stack, n_side, n_side))
 
     #AGENT
-    dqn = DQN(action_value=action_value, metrics = metrics)
+    dqn = DQN(action_value=action_value)
     reinforce = REINFORCE(actor=actor, metrics=metrics)
 
     #RUN
-    run(reinforce, 
+    # cProfile.run("run(dqn, env = env, steps=20,  wandb_cb = False, n_render=1)", sort=-1)
+    # s()
+
+    run(dqn, 
         env = env, 
-        episodes=1000, 
-        wandb_cb = False,
+        steps=2000, 
+        wandb_cb = True,
         n_render=1,
         )    
+    
+    
 
 
 

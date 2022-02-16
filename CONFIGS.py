@@ -2,7 +2,7 @@ DQN_CONFIG = {"name" : "DQN",
     "gamma" : 0.99,
     "sample_size" : 32,
     
-    "frames_skipped" : 1,
+    "frames_skipped" : 4,
     "history_lenght" : 1,   #To implement
     
     "reward_scaler" : 100,
@@ -14,7 +14,7 @@ DQN_CONFIG = {"name" : "DQN",
     "train_freq" : 1,
     "gradients_steps" : 1,
     
-    "learning_starts" : 2048,
+    "learning_starts" : 10,
     "exploration_timesteps" : 10000,
     "exploration_initial" : 1,
     "exploration_final" : 0.1,

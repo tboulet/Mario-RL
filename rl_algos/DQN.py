@@ -14,22 +14,21 @@ import torchvision.transforms as T
 
 from MEMORY import Memory
 from CONFIGS import DQN_CONFIG
+from METRICS import *
 from rl_algos.AGENT import AGENT
 
 class DQN(AGENT):
 
     def __init__(self, action_value : nn.Module, metrics = [], config = DQN_CONFIG):
-        super().__init__(config)
-        self.config = config
+        metrics = [MetricS_On_Learn,Metric_Epsilon]
+        super().__init__(config, metrics)
         self.memory = Memory(MEMORY_KEYS = ['observation', 'action','reward', 'done', 'next_observation'])
-        self.step = 0
         self.last_action = None
         
         self.action_value = action_value
         self.action_value_target = deepcopy(action_value)
         self.opt = optim.Adam(lr = 1e-4, params=action_value.parameters())
         self.f_eps = lambda s : max(s.exploration_final, s.exploration_initial + (s.exploration_final - s.exploration_initial) * (s.step / s.exploration_timesteps))
-        self.metrics = list(Metric(self) for Metric in metrics)
         
         
     def act(self, observation, greedy=False, mask = None):
@@ -67,6 +66,9 @@ class DQN(AGENT):
                 authorized_actions = [i for i in range(len(mask)) if mask[i] == 0]              #Choose random action among authorized ones
                 action = random.choice(authorized_actions)
     
+        #Save metrics
+        self.add_metric(mode = 'act')
+    
         # Action
         self.last_action = action
         return action
@@ -74,22 +76,21 @@ class DQN(AGENT):
 
     def learn(self):
         '''Do one step of learning.
-        return : metrics, a list of metrics computed during this learning step.
         '''
-        metrics = list()
+        values = dict()
         self.step += 1
-        
+
         #Skip frames:
         if self.step % self.frames_skipped != 0:
-            return metrics
+            return
 
         #Learn only every train_freq steps
         if self.step % self.train_freq != 0:
-            return metrics
+            return
 
         #Learn only after learning_starts steps 
         if self.step <= self.learning_starts:
-            return metrics
+            return
 
         #Sample trajectories
         observations, actions, rewards, dones, next_observations = self.memory.sample(
@@ -98,8 +99,9 @@ class DQN(AGENT):
             func = lambda arr : torch.Tensor(arr),
         )
         actions = actions.to(dtype = torch.int64)
-        #print(observations, actions, rewards, dones, sep = '\n\n')
-    
+        
+        # print(observations.shape, actions, rewards, dones, sep = '\n\n')
+        # raise
 
         #Scaling the rewards
         if self.reward_scaler is not None:
@@ -130,7 +132,9 @@ class DQN(AGENT):
             if self.clipping is not None:
                 for param in self.action_value.parameters():
                     param.grad.data.clamp_(-self.clipping, self.clipping)
-            self.opt.step() 
+            self.opt.step()
+        values["critic_loss"] = loss.detach().numpy()
+        values["value"] = Q_s.mean().detach().numpy()
         
         #Update target network
         if self.update_method == "periodic":
@@ -138,21 +142,22 @@ class DQN(AGENT):
                 self.action_value_target = deepcopy(self.action_value)
         elif self.update_method == "soft":
             for phi, phi_target in zip(self.action_value.parameters(), self.action_value_target.parameters()):
-                phi.data = self.tau * phi.data + (1-self.tau) * phi_target.data
-            
+                phi.data = self.tau * phi.data + (1-self.tau) * phi_target.data    
         else:
             print(f"Error : update_method {self.update_method} not implemented.")
             sys.exit()
 
-        #Metrics
-        return list(metric.on_learn(critic_loss = loss.detach().numpy(), value = Q_s.mean().detach().numpy()) for metric in self.metrics)
-
+        #Save metrics
+        self.add_metric(mode = 'learn', **values)
+        
+        
     def remember(self, observation, action, reward, done, next_observation, info={}, **param):
         '''Save elements inside memory.
         *arguments : elements to remember, as numerous and in the same order as in self.memory.MEMORY_KEYS
-        return : metrics, a list of metrics computed during this remembering step.
         '''
         self.memory.remember((observation, action, reward, done, next_observation, info))
-        return list(metric.on_remember(obs = observation, action = action, reward = reward, done = done, next_obs = next_observation) for metric in self.metrics)
-
+        values = {"obs" : observation, "action" : action, "reward" : reward, "done" : done, "next_obs" : next_observation}
+        
+        #Save metrics
+        self.add_metric(mode = 'remember', **values)
     
