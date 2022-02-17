@@ -19,9 +19,9 @@ from rl_algos.AGENT import AGENT
 
 class DQN(AGENT):
 
-    def __init__(self, action_value : nn.Module, metrics = [], config = DQN_CONFIG):
+    def __init__(self, action_value : nn.Module):
         metrics = [MetricS_On_Learn, Metric_Epsilon, Metric_Performances]
-        super().__init__(config, metrics)
+        super().__init__(config = DQN_CONFIG, metrics = metrics)
         self.memory = Memory(MEMORY_KEYS = ['observation', 'action','reward', 'done', 'next_observation'])
         self.last_action = None
         

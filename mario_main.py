@@ -23,6 +23,7 @@ from METRICS import *
 #RL agents
 from rl_algos.DQN import DQN
 from rl_algos.REINFORCE import REINFORCE
+from rl_algos.AGENT import RANDOM_AGENT
 
 
 def run(agent, env, steps, wandb_cb = True, 
@@ -129,7 +130,9 @@ if __name__ == "__main__":
     #AGENT
     dqn = DQN(action_value=action_value)
     reinforce = REINFORCE(actor=actor, metrics=metrics)
-
+    random_agent = RANDOM_AGENT(2)
+    agent = random_agent
+    
     #RUN
     run(dqn, 
         env = env, 

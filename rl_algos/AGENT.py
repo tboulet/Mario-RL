@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import wandb
 from random import randint
-
+from METRICS import MetricS_On_Learn_Numerical
 
 class AGENT(ABC):
     
@@ -14,8 +14,8 @@ class AGENT(ABC):
         self.metrics_saved = list()
         
     @abstractmethod
-    def act(self, action, values):
-        return action
+    def act(self, obs):
+        pass
     
     @abstractmethod
     def learn(self):
@@ -49,7 +49,7 @@ class RANDOM_AGENT(AGENT):
     n_actions : int, n of action space
     '''
     def __init__(self, n_actions):
-        super().__init__()
+        super().__init__(metrics=[MetricS_On_Learn_Numerical,])
         self.n_actions = n_actions  #For RandomAgent only
     
     def act(self, obs):
@@ -65,10 +65,11 @@ class RANDOM_AGENT(AGENT):
         #Learn here
         ...
         #Save metrics
+        self.step += 1
         values = {"my_metric_name1" : 22, "my_metric_name2" : 42}
         self.add_metric(mode = 'learn', **values)
     
-    def remember(self, **kwargs):
+    def remember(self, *args):
         #Save kwargs in memory here
         ... 
         #Save metrics
