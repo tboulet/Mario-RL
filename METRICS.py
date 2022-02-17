@@ -161,7 +161,7 @@ class Metric_Performances(Metric):
     def on_act(self, **kwargs):
         return self.on_x("time : ACTING")
     def on_remember(self, **kwargs):
-        return self.on_x("time : ENV REACTING + REMEMBERING")
+        return self.on_x("time : ENV REACTING (+RENDERING) + REMEMBERING")
     def on_learn(self, **kwargs):
         return self.on_x("time : SAMPLING + LEARNING")
     

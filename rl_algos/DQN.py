@@ -20,7 +20,7 @@ from rl_algos.AGENT import AGENT
 class DQN(AGENT):
 
     def __init__(self, action_value : nn.Module):
-        metrics = [MetricS_On_Learn, Metric_Epsilon, Metric_Performances]
+        metrics = [MetricS_On_Learn, Metric_Epsilon, Metric_Performances, Metric_Count_Episodes]
         super().__init__(config = DQN_CONFIG, metrics = metrics)
         self.memory = Memory(MEMORY_KEYS = ['observation', 'action','reward', 'done', 'next_observation'])
         self.last_action = None
@@ -89,7 +89,7 @@ class DQN(AGENT):
             return
 
         #Learn only after learning_starts steps 
-        if self.step <= self.learning_starts:
+        if self.step < self.learning_starts:
             return
 
         #Sample trajectories
@@ -119,6 +119,7 @@ class DQN(AGENT):
             future_Q_s, bests_a = torch.max(future_Q_s_a, dim = 1, keepdim=True)
             future_Q_s_a_target = self.action_value_target(next_observations)
             future_Q_s_target = torch.gather(future_Q_s_a_target, dim = 1, index= bests_a)
+            
             Q_s_predicted = rewards + self.gamma * future_Q_s_target * (1 - dones)
         
         #Gradient descent on Q network
@@ -127,7 +128,7 @@ class DQN(AGENT):
             self.opt.zero_grad()
             Q_s_a = self.action_value(observations)
             Q_s = Q_s_a.gather(dim = 1, index = actions)
-            loss = criterion(Q_s_predicted, Q_s)
+            loss = criterion(Q_s, Q_s_predicted)
             loss.backward(retain_graph = True)
             if self.clipping is not None:
                 for param in self.action_value.parameters():
@@ -155,7 +156,7 @@ class DQN(AGENT):
         '''Save elements inside memory.
         *arguments : elements to remember, as numerous and in the same order as in self.memory.MEMORY_KEYS
         '''
-        self.memory.remember((observation, action, reward, done, next_observation, info))
+        self.memory.remember((observation, action, reward, done, next_observation))
         values = {"obs" : observation, "action" : action, "reward" : reward, "done" : done, "next_obs" : next_observation}
         
         #Save metrics

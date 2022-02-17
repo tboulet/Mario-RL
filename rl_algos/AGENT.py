@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import wandb
 from random import randint
-from METRICS import MetricS_On_Learn_Numerical
+from METRICS import *
 
 class AGENT(ABC):
     
@@ -49,7 +49,7 @@ class RANDOM_AGENT(AGENT):
     n_actions : int, n of action space
     '''
     def __init__(self, n_actions):
-        super().__init__(metrics=[MetricS_On_Learn_Numerical,]) #Choose metrics here
+        super().__init__(metrics=[MetricS_On_Learn_Numerical, Metric_Performances]) #Choose metrics here
         self.n_actions = n_actions  #For RandomAgent only
     
     def act(self, obs):

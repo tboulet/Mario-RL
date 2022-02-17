@@ -1,7 +1,9 @@
+import math
 from matplotlib import pyplot as plt
 import torch
 from torchvision import transforms as T
 import numpy as np
+import cv2
 # Gym
 import gym
 from gym.spaces import Box
@@ -53,13 +55,47 @@ class ResizeObservation(gym.ObservationWrapper):
 
 
 class NumpyingObservation(gym.ObservationWrapper):
-    # torch (4, 84, 84) --> numpy (4, 84, 84)
+    # torch (4, 84, 84) --> numpy (4, 84, 84)        
     def observation(self, observation):
         obs = np.array(observation)
         return obs
 
 
+class RedefineRewardInfo(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
 
+    def step(self, action):
+        next_obs, reward, done, info = super(RedefineRewardInfo, self).step(action)
+        x = info["x_pos"]
+        if done: 
+            self.reset()  
+            done = False         
+            reward -= 2             #Additional death punishment
+        try:                
+            if self.position_mario_x == x:
+                reward -= 5         #Standing still punishment
+            elif self.position_mario_x > x:
+                reward += math.log(x)   #Bonus for going far in the level
+        except AttributeError:
+            self.position_mario_x = info["x_pos"]
+        self.position_mario_x = x
+        return next_obs, reward, done, info
+
+
+class DisplayMarioPerspective(gym.ObservationWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.t = 0
+        cv2.namedWindow('Mario Perspective', cv2.WINDOW_NORMAL)
+        
+    def observation(self, observation):
+        self.t += 1
+        if self.t % 5 == 0:
+            img = observation[0]
+            cv2.imshow('Mario Perspective', img)
+            
+        return observation
 
 def load_smb_env(obs_complexity = 1, n_side = 84, n_stack = 4):
     # torch (84, 84) --> torch (4, 84, 84)
@@ -69,8 +105,10 @@ def load_smb_env(obs_complexity = 1, n_side = 84, n_stack = 4):
     env = JoypadSpace(env, MOVEMENTS)
     
     # Apply Wrappers to environment
-    env = GrayScaleObservation(env)         #Gray the observation, reducing channels without loosing information.
+    env = GrayScaleObservation(env)             #Gray the observation, reducing channels without loosing information.
     env = ResizeObservation(env, shape=n_side)  #Resize obs shape to (84, 84) for dimension reduction while keeping sufficient infomation
-    env = FrameStack(env, num_stack=n_stack)      #Stack last 4 frames to obtain a (4, 84, 84) array
+    env = FrameStack(env, num_stack=n_stack)    #Stack last 4 frames to obtain a (4, 84, 84) array
     env = NumpyingObservation(env)
+    env = RedefineRewardInfo(env)
+    env = DisplayMarioPerspective(env)
     return env

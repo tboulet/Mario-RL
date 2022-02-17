@@ -2,10 +2,10 @@ DQN_CONFIG = {"name" : "DQN",
     "gamma" : 0.99,
     "sample_size" : 32,
     
-    "frames_skipped" : 4,
+    "frames_skipped" : 10,
     "history_lenght" : 1,   #To implement
     
-    "reward_scaler" : 100,
+    "reward_scaler" : None,
     "update_method" : "periodic",
     "target_update_interval" : 5000,
     "tau" : 0.99,
@@ -14,7 +14,7 @@ DQN_CONFIG = {"name" : "DQN",
     "train_freq" : 1,
     "gradients_steps" : 1,
     
-    "learning_starts" : 10,
+    "learning_starts" : 1,
     "exploration_timesteps" : 10000,
     "exploration_initial" : 1,
     "exploration_final" : 0.1,

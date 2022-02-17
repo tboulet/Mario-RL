@@ -5,6 +5,7 @@ torchsummary
 numpy
 matplotlib
 moviepy
+opencv-python
 
 stable-baselines3[extra]
 gym
