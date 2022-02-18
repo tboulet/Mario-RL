@@ -59,7 +59,19 @@ class Metric_Total_Reward(Metric):
                 return dict()
         except KeyError:
             return dict()
+
+
+class Metric_Reward(Metric):
+    def __init__(self, agent):
+        super().__init__()
+        self.agent = agent
     
+    def on_remember(self, **kwargs):
+        try:
+            return {"reward" : kwargs["reward"]}
+        except:
+            return dict()
+        
 
 class Metric_Epsilon(Metric):
     '''Log exploration factor.'''
@@ -159,9 +171,9 @@ class Metric_Performances(Metric):
             return dict()
         return {step_of_training: dur}
     def on_act(self, **kwargs):
-        return self.on_x("time : ACTING")
+        return self.on_x("time : ACTING + LOGGING (+ RENDERING)")
     def on_remember(self, **kwargs):
-        return self.on_x("time : ENV REACTING (+RENDERING) + REMEMBERING")
+        return self.on_x("time : ENV REACTING + REMEMBERING")
     def on_learn(self, **kwargs):
         return self.on_x("time : SAMPLING + LEARNING")
     

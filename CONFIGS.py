@@ -8,15 +8,15 @@ DQN_CONFIG = {"name" : "DQN",
     "reward_scaler" : None,
     "update_method" : "periodic",
     "target_update_interval" : 5000,
-    "tau" : 0.99,
+    "tau" : 0.96,
     "double_q_learning" : False,
     "clipping" : None,
     "train_freq" : 1,
     "gradients_steps" : 1,
-    
+     
     "learning_starts" : 1,
-    "exploration_timesteps" : 10000,
-    "exploration_initial" : 1,
+    "exploration_timesteps" : 1,
+    "exploration_initial" : 0.1,
     "exploration_final" : 0.1,
     }
 

@@ -129,15 +129,15 @@ if __name__ == "__main__":
 
     #AGENT
     dqn = DQN(action_value=action_value)
-    reinforce = REINFORCE(actor=actor, metrics=metrics)
+    reinforce = REINFORCE(actor=actor)
     random_agent = RANDOM_AGENT(2)
     agent = dqn
     
     #RUN
     run(agent, 
         env = env, 
-        steps=5000, 
-        wandb_cb = False,
+        steps=500000, 
+        wandb_cb = True,
         n_render=1,
         )    
     

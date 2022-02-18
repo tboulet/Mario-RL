@@ -68,13 +68,18 @@ class RedefineRewardInfo(gym.Wrapper):
     def step(self, action):
         next_obs, reward, done, info = super(RedefineRewardInfo, self).step(action)
         x = info["x_pos"]
-        if done: 
-            self.reset()  
-            done = False         
-            reward -= 2             #Additional death punishment
+        if info["life"] <= 1:
+            done = True             #One episode is 1 live not 3
+            self.reset()
+        if done:    
+            print("Dying")      
+            reward -= 5             #Additional death punishment
+        # if done:                  #For a non-terminal game. Mario just try to not die and not getting blocked.
+        #     self.reset()  
+        #     done = False
         try:                
             if self.position_mario_x == x:
-                reward -= 5         #Standing still punishment
+                reward -= 3         #Standing still punishment
             elif self.position_mario_x > x:
                 reward += math.log(x)   #Bonus for going far in the level
         except AttributeError:
@@ -91,7 +96,7 @@ class DisplayMarioPerspective(gym.ObservationWrapper):
         
     def observation(self, observation):
         self.t += 1
-        if self.t % 5 == 0:
+        if self.t % 10 == 0:
             img = observation[0]
             cv2.imshow('Mario Perspective', img)
             
