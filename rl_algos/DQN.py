@@ -142,7 +142,7 @@ class DQN(AGENT):
                 self.action_value_target = deepcopy(self.action_value)
         elif self.update_method == "soft":
             for phi, phi_target in zip(self.action_value.parameters(), self.action_value_target.parameters()):
-                phi.data = self.tau * phi.data + (1-self.tau) * phi_target.data    
+                phi_target.data = self.tau * phi_target.data + (1-self.tau) * phi.data    
         else:
             print(f"Error : update_method {self.update_method} not implemented.")
             sys.exit()
