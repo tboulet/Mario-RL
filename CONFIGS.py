@@ -2,7 +2,7 @@ DQN_CONFIG = {"name" : "DQN",
     "gamma" : 0.99,
     "sample_size" : 32,
     
-    "frames_skipped" : 10,
+    "frames_skipped" : 5,
     "history_lenght" : 1,   #To implement
     
     "reward_scaler" : None,
@@ -23,10 +23,10 @@ DQN_CONFIG = {"name" : "DQN",
 REINFORCE_CONFIG = {"name" : "REINFORCE",
     "learning_rate" : 1e-3,
     "gamma" : 0.99,
-    "frames_skipped" : 1,
-    "reward_scaler" : 100,
+    "frames_skipped" : 4,
+    "reward_scaler" : None,
     "batch_size" : 1, #TO IMPLEMENT
-    "off_policy" : True,
+    "off_policy" : False,
     }
 
 ACTOR_CRITIC_CONFIG = {"name" : "ACTOR_CRITIC",

@@ -16,8 +16,10 @@ from torch.distributions.categorical import Categorical
 
 from MEMORY import Memory
 from CONFIGS import REINFORCE_CONFIG
+from METRICS import Metric_Performances, Metric_Total_Reward, MetricS_On_Learn
+from rl_algos.AGENT import AGENT
 
-class REINFORCE():
+class REINFORCE(AGENT):
     '''REINFORCE agent is an actor RL agent that performs gradient ascends on the estimated objective function to maximize.
     NN trained : Actor
     Policy used : On-policy
@@ -26,27 +28,20 @@ class REINFORCE():
     States : discrete / continuous
     '''
 
-    def __init__(self, actor : nn.Module, metrics = [], config = REINFORCE_CONFIG):
-        self.config = config
+    def __init__(self, actor : nn.Module):
+        metrics = [MetricS_On_Learn, Metric_Total_Reward, Metric_Performances]
+        super().__init__(config = REINFORCE_CONFIG, metrics = metrics)
         self.memory = Memory(MEMORY_KEYS = ['observation', 'action','reward', 'done', 'next_observation'])
-        self.step = 0
         self.last_action = None
         
         self.policy = actor
         self.opt = optim.Adam(lr = 1e-4, params=self.policy.parameters())
-
-        self.gamma = 0.99
-        self.frames_skipped = 1
-        self.reward_scaler = None
+                
         
-        self.metrics = list(Metric(self) for Metric in metrics)
-        
-        
-    def act(self, observation, mask = None, np2torch = True):
+    def act(self, observation, mask = None):
         '''Ask the agent to take a decision given an observation.
         observation : an (n_obs,) shaped nummpy observation.
         mask : a binary list containing 1 where corresponding actions are forbidden.
-        np2torch : bool, True if observation is a numpy array and not already a torch tensor
         return : an int corresponding to an action
         '''
 
@@ -62,6 +57,8 @@ class REINFORCE():
         actions = distribs.sample()
         action = actions.numpy()[0]
         
+        #Save metrics
+        self.add_metric(mode = 'act')
         
         # Action
         self.last_action = action
@@ -72,28 +69,26 @@ class REINFORCE():
         '''Do one step of learning.
         return : metrics, a list of metrics computed during this learning step.
         '''
-        metrics = list()
+        values = dict()
+        self.step += 1
         
         #Skip frames:
         if self.step % self.frames_skipped != 0:
-            return metrics
-        self.step += 1
+            return
         
         #Sample trajectories
         observations, actions, rewards, dones, next_observations = self.memory.sample(
             method = "all",
-            func = lambda arr : torch.Tensor(arr),
         )
         actions = actions.to(dtype = torch.int64)
         
         #Learn only at end of episode
         if not dones[-1]:
-            return metrics
+            return
             
         #Scaling the rewards
         if self.reward_scaler is not None:
-            mean, std = self.reward_scaler
-            rewards = (rewards - mean) / std
+            rewards /= self.reward_scaler
         
         #Computing loss = - sum_t( G_t * sum_t'(log(pi(a_t' | S = s_t'))) )   | with G_t being the sum of future rewards at time t (with discount factor gamma) and sum_t' summing for t' >= t
         self.opt.zero_grad()
@@ -112,14 +107,17 @@ class REINFORCE():
             #sum_t( G_t * log_proba_t )
         loss = torch.multiply(log_probs, G)
         loss = - torch.sum(loss)
+        values["actor_loss"] = loss.detach().numpy()
         
         #Backpropagate to improve policy
         loss.backward()
         self.opt.step()
         self.memory.__empty__()
         
-        #Metrics
-        return list(metric.on_learn(actor_loss = loss.detach().numpy()) for metric in self.metrics)
+        #Save metrics
+        self.add_metric(mode = 'learn', **values)
+
+
 
     def remember(self, observation, action, reward, done, next_observation, info={}, **param):
         '''Save elements inside memory.
@@ -127,7 +125,13 @@ class REINFORCE():
         return : metrics, a list of metrics computed during this remembering step.
         '''
         self.memory.remember((observation, action, reward, done, next_observation, info))
-        return list(metric.on_remember(obs = observation, action = action, reward = reward, done = done, next_obs = next_observation, bb = 12) for metric in self.metrics)
+        values = {"obs" : observation, "action" : action, "reward" : reward, "done" : done, "next_obs" : next_observation}
+
+        #Save metrics
+        self.add_metric(mode = 'remember', **values)
+
+
+
 
 
 

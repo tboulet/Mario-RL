@@ -96,7 +96,6 @@ class DQN(AGENT):
         observations, actions, rewards, dones, next_observations = self.memory.sample(
             sample_size=self.sample_size,
             method = "random",
-            # func = lambda arr : torch.Tensor(arr),
         )
         actions = actions.to(dtype = torch.int64)
         

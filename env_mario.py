@@ -72,16 +72,15 @@ class RedefineRewardInfo(gym.Wrapper):
             done = True             #One episode is 1 live not 3
             self.reset()
         if done:    
-            print("Dying")      
             reward -= 5             #Additional death punishment
         # if done:                  #For a non-terminal game. Mario just try to not die and not getting blocked.
         #     self.reset()  
         #     done = False
         try:                
             if self.position_mario_x == x:
-                reward -= 3         #Standing still punishment
-            elif self.position_mario_x > x:
-                reward += math.log(x)   #Bonus for going far in the level
+                reward -= 2         #Standing still punishment
+            # elif self.position_mario_x > x:
+            #     reward += math.log(x)   #Bonus for going far in the level
         except AttributeError:
             self.position_mario_x = info["x_pos"]
         self.position_mario_x = x

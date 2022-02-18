@@ -105,7 +105,10 @@ class Memory():
         func : a function applied to each elements of the transitions.
         return : a list containing a list of size sample_size for each kind of element stored.
         '''
-        sample_size = min(sample_size, len(self))
+        if sample_size is None:
+            sample_size = len(self)
+        else:
+            sample_size = min(sample_size, len(self))
                     
         if method == 'all':
             #Each elements in order.
@@ -160,6 +163,6 @@ class Memory():
         return self.memory_len
 
     def __empty__(self):
-        self.trajectory = dict()
+        self.trajectory = {key : list() for key in self.MEMORY_KEYS}
         self.memory_len = 0
         
