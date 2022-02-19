@@ -31,8 +31,7 @@ class REINFORCE(AGENT):
     def __init__(self, actor : nn.Module):
         metrics = [MetricS_On_Learn, Metric_Total_Reward, Metric_Performances]
         super().__init__(config = REINFORCE_CONFIG, metrics = metrics)
-        self.memory = Memory(MEMORY_KEYS = ['observation', 'action','reward', 'done', 'next_observation'])
-        self.last_action = None
+        self.memory = Memory(MEMORY_KEYS = ['observation', 'action','reward', 'done'])
         
         self.policy = actor
         self.opt = optim.Adam(lr = 1e-4, params=self.policy.parameters())
@@ -44,10 +43,6 @@ class REINFORCE(AGENT):
         mask : a binary list containing 1 where corresponding actions are forbidden.
         return : an int corresponding to an action
         '''
-
-        #Skip frames:
-        if self.step % self.frames_skipped != 0:
-            return self.last_action
         
         #Batching observation
         observation = torch.Tensor(observation)
@@ -61,7 +56,6 @@ class REINFORCE(AGENT):
         self.add_metric(mode = 'act')
         
         # Action
-        self.last_action = action
         return action
 
 
@@ -72,14 +66,10 @@ class REINFORCE(AGENT):
         values = dict()
         self.step += 1
         
-        #Skip frames:
-        if self.step % self.frames_skipped != 0:
-            return
-        
         #Sample trajectories
-        observations, actions, rewards, dones, next_observations = self.memory.sample(
+        observations, actions, rewards, dones = self.memory.sample(
             method = "all",
-        )
+            )
         actions = actions.to(dtype = torch.int64)
         
         #Learn only at end of episode
@@ -94,12 +84,14 @@ class REINFORCE(AGENT):
         self.opt.zero_grad()
             #G_t = sum_[t'>=t](gamma ** (t'-t) * r_t')
         ep_lenght = rewards.shape[0]    #T
-        G = [rewards[-1].numpy()] 
+        rewards = rewards[:,0].numpy().tolist()
+        G = [rewards[-1]] 
         for i in range(1, ep_lenght):
             t = ep_lenght - i
             previous_G_t =  rewards[t] + self.gamma * G[0]
             G.insert(0, previous_G_t)
         G = torch.tensor(G)
+        
             #log_proba_t = sum_t'(log(pi(a|s)))
         probs = self.policy(observations)   #(T, n_actions)
         probs = torch.gather(probs, dim = 1, index = actions)   #(T, 1)
@@ -107,7 +99,6 @@ class REINFORCE(AGENT):
             #sum_t( G_t * log_proba_t )
         loss = torch.multiply(log_probs, G)
         loss = - torch.sum(loss)
-        values["actor_loss"] = loss.detach().numpy()
         
         #Backpropagate to improve policy
         loss.backward()
@@ -115,6 +106,7 @@ class REINFORCE(AGENT):
         self.memory.__empty__()
         
         #Save metrics
+        values["actor_loss"] = loss.detach().numpy()
         self.add_metric(mode = 'learn', **values)
 
 
@@ -125,9 +117,9 @@ class REINFORCE(AGENT):
         return : metrics, a list of metrics computed during this remembering step.
         '''
         self.memory.remember((observation, action, reward, done, next_observation, info))
-        values = {"obs" : observation, "action" : action, "reward" : reward, "done" : done, "next_obs" : next_observation}
 
         #Save metrics
+        values = {"obs" : observation, "action" : action, "reward" : reward, "done" : done}
         self.add_metric(mode = 'remember', **values)
 
 
@@ -158,11 +150,6 @@ class REINFORCE_OFFLINE():
         return : an int corresponding to an actioné
         '''
 
-        #Skip frames:
-        if self.step % self.frames_skipped != 0:
-            if self.last_action is not None:
-                return self.last_action
-        
         #Batching observation
         observations = torch.Tensor(observation)
         observations = observations.unsqueeze(0) # (1, observation_space)
@@ -182,10 +169,6 @@ class REINFORCE_OFFLINE():
         return : metrics, a list of metrics computed during this learning step.
         '''
         metrics = list()
-        
-        #Skip frames:
-        if self.step % self.frames_skipped != 0:
-            return metrics
         self.step += 1
         
         #Sample trajectories
@@ -227,7 +210,8 @@ class REINFORCE_OFFLINE():
         self.memory.__empty__()
         
         #Metrics
-        return list(metric.on_learn(actor_loss = loss.detach().numpy()) for metric in self.metrics)
+        values = {"actor_loss" : loss.detach().numpy()}
+        self.add_metric(mode = 'learn', values = values)
 
     def remember(self, observation, action, reward, done, next_observation, info={}, **param):
         '''Save elements inside memory.

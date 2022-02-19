@@ -23,7 +23,7 @@ from div.utils import *
 from MEMORY import Memory
 from METRICS import *
 
-from rl_algos_torch.DQN import DQN
+from rl_algos.DQN import DQN
 
 
 if __name__ == "__main__":

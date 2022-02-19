@@ -23,7 +23,6 @@ class DQN(AGENT):
         metrics = [MetricS_On_Learn, Metric_Reward, Metric_Total_Reward, Metric_Performances, Metric_Action_Frequencies]
         super().__init__(config = DQN_CONFIG, metrics = metrics)
         self.memory = Memory(MEMORY_KEYS = ['observation', 'action','reward', 'done', 'next_observation'])
-        self.last_action = None
         
         self.action_value = action_value
         self.action_value_target = deepcopy(action_value)
@@ -39,10 +38,6 @@ class DQN(AGENT):
         return : an int corresponding to an action
         '''
 
-        #Skip frames:
-        if self.step % self.frames_skipped != 0:
-            return self.last_action
-        
         #Batching observation
         observations = torch.Tensor(observation)
         observations = observations.unsqueeze(0) # (1, observation_space)
@@ -70,7 +65,6 @@ class DQN(AGENT):
         self.add_metric(mode = 'act')
     
         # Action
-        self.last_action = action
         return action
 
 
@@ -79,10 +73,6 @@ class DQN(AGENT):
         '''
         values = dict()
         self.step += 1
-
-        #Skip frames:
-        if self.step % self.frames_skipped != 0:
-            return
 
         #Learn only every train_freq steps
         if self.step % self.train_freq != 0:
@@ -96,7 +86,7 @@ class DQN(AGENT):
         observations, actions, rewards, dones, next_observations = self.memory.sample(
             sample_size=self.sample_size,
             method = "random",
-        )
+            )
         actions = actions.to(dtype = torch.int64)
         
         # print(observations.shape, actions, rewards, dones, sep = '\n\n')
@@ -133,8 +123,6 @@ class DQN(AGENT):
                 for param in self.action_value.parameters():
                     param.grad.data.clamp_(-self.clipping, self.clipping)
             self.opt.step()
-        values["critic_loss"] = loss.detach().numpy()
-        values["value"] = Q_s.mean().detach().numpy()
         
         #Update target network
         if self.update_method == "periodic":
@@ -147,7 +135,9 @@ class DQN(AGENT):
             print(f"Error : update_method {self.update_method} not implemented.")
             sys.exit()
 
-        #Save metrics
+        #Save metrics*
+        values["critic_loss"] = loss.detach().numpy()
+        values["value"] = Q_s.mean().detach().numpy()
         self.add_metric(mode = 'learn', **values)
         
         
@@ -156,8 +146,8 @@ class DQN(AGENT):
         *arguments : elements to remember, as numerous and in the same order as in self.memory.MEMORY_KEYS
         '''
         self.memory.remember((observation, action, reward, done, next_observation))
-        values = {"obs" : observation, "action" : action, "reward" : reward, "done" : done, "next_obs" : next_observation}
         
         #Save metrics
+        values = {"obs" : observation, "action" : action, "reward" : reward, "done" : done, "next_obs" : next_observation}
         self.add_metric(mode = 'remember', **values)
     

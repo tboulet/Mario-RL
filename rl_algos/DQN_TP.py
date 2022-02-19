@@ -1,5 +1,4 @@
 from copy import copy, deepcopy
-from operator import index
 import numpy as np
 import math
 import gym
@@ -15,31 +14,24 @@ import torchvision.transforms as T
 
 from MEMORY import Memory
 from CONFIGS import DQN_CONFIG
+from METRICS import *
+from rl_algos.AGENT import AGENT
 
-class DQN():
+class DQN_TP(AGENT):
+    '''DQN to fill for didactic purposes
     '''
-    DQN to fill for didactic purposes.
-    '''
-
-    def __init__(self, memory : Memory, action_value : nn.Module, metrics = [], config = DQN_CONFIG):
-        self.memory = 
-        self.step = 
-
-        self.action_value = 
-        self.action_value_target = 
-        self.opt = 
-
-        self.gamma =
-        self.sample_size = 
-        self.reward_scaler = #(mean, std), R <- (R-mean)/std
-        self.update_method =    # "soft" or "periodic"
+    
+    def __init__(self, action_value : nn.Module):
+        metrics = [MetricS_On_Learn, Metric_Reward, Metric_Total_Reward, Metric_Performances, Metric_Action_Frequencies]
+        super().__init__(config = DQN_CONFIG, metrics = metrics)
+        self.memory = ...
         
-        self.exploration_timesteps = 
-        self.exploration_initial = 
-        self.exploration_final = 
+        self.action_value = ...
+        self.action_value_target = ...
+        self.opt = ...
         self.f_eps = lambda s : max(s.exploration_final, s.exploration_initial + (s.exploration_final - s.exploration_initial) * (s.step / s.exploration_timesteps))
-        self.metrics = list(Metric(self) for Metric in metrics)
-
+        
+        
     def act(self, observation, greedy=False, mask = None):
         '''Ask the agent to take a decision given an observation.
         observation : an (n_obs,) shaped observation.
@@ -48,83 +40,77 @@ class DQN():
         return : an int corresponding to an action
         '''
 
-        #Skip frames:
-        # optional /
-        
-        #Batching observation : numpy of shape (n_obs,) to torch tensor of shape (1, n_obs)
-        ...
-        observations = 
+        #Batching observation
+        observations = ...
     
-        # Q(s) (shape = (1, n_action))
-        Q_a = 
+        # Q(s)
+        Q = ...
 
-        #Choose action greedy
-        epsilon = 
+        #Greedy policy
+        epsilon = self.f_eps(self)
         if greedy or np.random.rand() > epsilon:
             ...
-            action =
     
         #Exploration
         else :
             ...
-            action = 
+        
+        #Save metrics
+        self.add_metric(mode = 'act')
     
-        # Action (int) is returned
+        # Action
         return action
 
 
     def learn(self):
         '''Do one step of learning.
-        return : metrics, a list of metrics computed during this learning step.
         '''
-        metrics = list()
-        
-        #Skip frames:
-        # optional /
+        values = dict()
+        self.step += 1
 
         #Learn only every train_freq steps
-        # optional /
+        #\optional
 
         #Learn only after learning_starts steps 
-        # optional /
+        #\optional
 
-        #Sample trajectories from memory
-        observations, actions, rewards, dones, next_observations = 
-        ...
+        #Sample trajectories
+        observations, actions, rewards, dones, next_observations = ...
         actions = actions.to(dtype = torch.int64)
-        #print(observations, actions, rewards, dones, sep = '\n\n')
-    
 
-        #Normalizing the rewards : (mean, std) = (100, 200) -> (0, 1)
-        # optional /
+        #Scaling the rewards
+        #\optional
         
-        # Estimated Q values : 
-        # method is Bootstrapping : Q(s,a) = r + gamma * max_a'(Q_target(s_next, a')) * (1-d)  | s_next and r being the result of action a taken in observation s
-        ...
-        Q_s_predicted = 
-                   
-        
+        # Estimated Q values
+        Q_s_predicted = ...
+
         #Gradient descent on Q network
-        ...
+        criterion = nn.SmoothL1Loss()
+        for _ in range(self.gradients_steps):
+            ...
         
         #Update target network
-        ...
+        if self.update_method == "periodic":
+            ...
+        elif self.update_method == "soft":
+            ...
+        else:
+            print(f"Error : update_method {self.update_method} not implemented.")
+            sys.exit()
 
-        #Metrics
-        return list(metric.on_learn(critic_loss = loss.detach().numpy(), value = Q_s.mean().detach().numpy()) for metric in self.metrics)
-
+        #Save metrics*
+        values["critic_loss"] = loss.detach().numpy()
+        values["value"] = Q_s.mean().detach().numpy()
+        self.add_metric(mode = 'learn', **values)
+        
+        
     def remember(self, observation, action, reward, done, next_observation, info={}, **param):
         '''Save elements inside memory.
         *arguments : elements to remember, as numerous and in the same order as in self.memory.MEMORY_KEYS
-        return : metrics, a list of metrics computed during this remembering step.
         '''
         ...
-        #Metrics
-        return list(metric.on_remember(obs = observation, action = action, reward = reward, done = done, next_obs = next_observation) for metric in self.metrics)
-
         
-
-
-
-if __name__ == "__main__":
-    print('ratio')
+        #Save metrics
+        values = {"obs" : observation, "action" : action, "reward" : reward, "done" : done, "next_obs" : next_observation}
+        self.add_metric(mode = 'remember', **values)
+    
