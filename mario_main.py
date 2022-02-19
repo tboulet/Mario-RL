@@ -90,7 +90,7 @@ if __name__ == "__main__":
     #ENV
     n_side = 84
     n_stack = 4
-    env = load_smb_env(obs_complexity=1, n_side = n_side, n_stack = n_stack, n_skip=4)
+    env = load_smb_env(obs_complexity=2, n_side = n_side, n_stack = n_stack, n_skip=4)
     
     
     n_actions = env.action_space.n
@@ -152,8 +152,8 @@ if __name__ == "__main__":
     run(agent, 
         env = env, 
         steps=500000, 
-        wandb_cb = True,
-        n_render=5,
+        wandb_cb = False,
+        n_render=1,
         )    
     
     
