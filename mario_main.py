@@ -23,6 +23,7 @@ from METRICS import *
 #RL agents
 from rl_algos.DQN import DQN
 from rl_algos.REINFORCE import REINFORCE
+from rl_algos.PPO import PPO
 from rl_algos.AGENT import RANDOM_AGENT
 
 
@@ -89,7 +90,7 @@ if __name__ == "__main__":
     #ENV
     n_side = 84
     n_stack = 4
-    env = load_smb_env(obs_complexity=1, n_side = n_side, n_stack = n_stack)
+    env = load_smb_env(obs_complexity=1, n_side = n_side, n_stack = n_stack, n_skip=4)
     
     
     n_actions = env.action_space.n
@@ -125,11 +126,25 @@ if __name__ == "__main__":
             nn.ReLU(),
             nn.Linear(512, n_actions),
         )
-    #summary(action_value, (n_stack, n_side, n_side))
+
+    #STATE VALUE V
+    state_value =  nn.Sequential(
+            nn.Conv2d(in_channels=n_stack, out_channels=32, kernel_size=8, stride=4),   #4,84,84 to 
+            nn.ReLU(),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(3136, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1),
+        )
 
     #AGENT
     dqn = DQN(action_value=action_value)
     reinforce = REINFORCE(actor=actor)
+    ppo = PPO(actor = actor, state_value= state_value)
     random_agent = RANDOM_AGENT(2)
     agent = reinforce
     

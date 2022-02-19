@@ -2,7 +2,6 @@ from typing import Tuple
 import torch
 import numpy as np
 import random as rd
-from collections import deque, namedtuple 
 
 #Memory using tensor
 class Memory():
@@ -82,7 +81,6 @@ class Memory():
 class Memory():
     def __init__(self, MEMORY_KEYS: list, max_memory_len: int=float('inf')):
         self.max_memory_len = max_memory_len
-        self.memory_len = 0
         self.MEMORY_KEYS = MEMORY_KEYS        
         self.trajectory = {key : list() for key in MEMORY_KEYS}
 
@@ -90,19 +88,18 @@ class Memory():
         '''Memorizes a transition and add it to the buffer. Complexity = O(size_transition)
         transition : a tuple of element corresponding to self.MEMORY_KEYS.
         '''
-        self.memory_len += 1
         for val, key in zip(transition, self.MEMORY_KEYS):
+            if type(val) == bool: val = int(val)
             self.trajectory[key].append(val)
-        if self.memory_len > self.max_memory_len:
+        if len(self) > self.max_memory_len:
             for val, key in zip(transition, self.MEMORY_KEYS):
                 self.trajectory[key].pop()
 
-    def sample(self, sample_size=None, pos_start=None, method='last', func = None):
+    def sample(self, sample_size=None, pos_start=None, method='last'):
         '''Samples several transitions from memory, using different methods. Complexity = O(sample_size x transition_size)
         sample_size : the number of transitions to sample, default all.
         pos_start : the position in the memory of the first transition sampled, default 0.
         method : the method of sampling in "all", "last", "random", "all_shuffled", "batch_shuffled", "batch".
-        func : a function applied to each elements of the transitions.
         return : a list containing a list of size sample_size for each kind of element stored.
         '''
         if sample_size is None:
@@ -138,31 +135,19 @@ class Memory():
 
         else:
             raise NotImplementedError('Not implemented sample')
-        
+
         trajectory = list()
         for elements in self.trajectory.values():
-            sampled_elements = list()
-            for idx in indexes:
-                elem = elements[idx]
-                if type(elem) == bool:
-                    elem = int(elem)
-                sampled_elements.append(elem)
-                
-            sampled_elements = np.array(sampled_elements)
-            sampled_elements = torch.tensor(sampled_elements)
+            sampled_elements = torch.tensor(np.array([elements[idx] for idx in indexes]))
             if len(sampled_elements.shape) == 1:
                 sampled_elements = torch.unsqueeze(sampled_elements, -1)
             trajectory.append(sampled_elements)
 
-        if func is not None:
-            trajectory = [func(elem) for elem in trajectory]
-            
         return trajectory
 
     def __len__(self):
-        return self.memory_len
+        return len(self.trajectory[self.MEMORY_KEYS[0]])
 
     def __empty__(self):
         self.trajectory = {key : list() for key in self.MEMORY_KEYS}
-        self.memory_len = 0
         

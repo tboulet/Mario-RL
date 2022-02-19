@@ -72,7 +72,7 @@ class RedefineRewardInfo(gym.Wrapper):
             done = True             #One episode is 1 live not 3
             self.reset()
         if done:    
-            reward -= 5             #Additional death punishment
+            reward -= 15             #Additional death punishment
         # if done:                  #For a non-terminal game. Mario just try to not die and not getting blocked.
         #     self.reset()  
         #     done = False
@@ -87,6 +87,24 @@ class RedefineRewardInfo(gym.Wrapper):
         return next_obs, reward, done, info
 
 
+class SkipFrame(gym.Wrapper):
+    def __init__(self, env, skip):
+        """Return only every `skip`-th frame"""
+        super().__init__(env)
+        self._skip = skip
+
+    def step(self, action):
+        """Repeat action, and sum reward"""
+        total_reward = 0.0
+        done = False
+        for i in range(self._skip):
+            # Accumulate reward and repeat the same action
+            obs, reward, done, info = self.env.step(action)
+            total_reward += reward
+            if done:
+                break
+        return obs, total_reward, done, info
+    
 class DisplayMarioPerspective(gym.ObservationWrapper):
     def __init__(self, env):
         super().__init__(env)
@@ -95,13 +113,13 @@ class DisplayMarioPerspective(gym.ObservationWrapper):
         
     def observation(self, observation):
         self.t += 1
-        if self.t % 10 == 0:
+        if self.t % 4 == 0:
             img = observation[0]
             cv2.imshow('Mario Perspective', img)
             
         return observation
 
-def load_smb_env(obs_complexity = 1, n_side = 84, n_stack = 4):
+def load_smb_env(obs_complexity = 1, n_side = 84, n_stack = 1, n_skip = 4):
     # torch (84, 84) --> torch (4, 84, 84)
     game_id = f"SuperMarioBros-1-1-v{3-obs_complexity}"
     env = gym_super_mario_bros.make(game_id)
@@ -112,7 +130,8 @@ def load_smb_env(obs_complexity = 1, n_side = 84, n_stack = 4):
     env = GrayScaleObservation(env)             #Gray the observation, reducing channels without loosing information.
     env = ResizeObservation(env, shape=n_side)  #Resize obs shape to (84, 84) for dimension reduction while keeping sufficient infomation
     env = FrameStack(env, num_stack=n_stack)    #Stack last 4 frames to obtain a (4, 84, 84) array
-    env = NumpyingObservation(env)
-    env = RedefineRewardInfo(env)
-    env = DisplayMarioPerspective(env)
+    env = NumpyingObservation(env)              #Transform obs from LazyFrame to np array
+    env = SkipFrame(env, n_skip)                #Skip some frames
+    env = RedefineRewardInfo(env)               #Redefines reward
+    env = DisplayMarioPerspective(env)          #Display 84x84 observation
     return env
