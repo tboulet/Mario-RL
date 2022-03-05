@@ -5,7 +5,8 @@ videos*
 figures
 wandb
 rbdl
-config
+config.py
+CONFIGS.py
 models
 DQN_TP
 
