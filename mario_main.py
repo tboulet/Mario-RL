@@ -1,9 +1,3 @@
-import sys
-import math
-import cProfile
-import random
-import matplotlib.pyplot as plt
-import numpy as np
 #Torch for deep learning
 import torch
 import torch.nn as nn
@@ -11,19 +5,23 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 from torchsummary import summary
+#Python library
+import sys
+import math
+import random
+import matplotlib.pyplot as plt
+import numpy as np
 #Gym for environments, WandB for feedback
-import gym
-from gym.wrappers import Monitor
-import wandb
-
-#Utils
-from div.utils import *
 from env_mario import load_smb_env
-from METRICS import *
+import gym
+import wandb
 #RL agents
-from rl_algos.DQN import DQN
-from rl_algos.REINFORCE import REINFORCE
-from rl_algos.PPO import PPO
+from div.utils import *
+try:
+    from config import agent_name, steps, wandb_cb, n_render
+except ImportError:
+    raise Exception("You need to specify your config in config.py\nConfig template is available at div/config_template.py")
+from rl_algos._ALL_AGENTS import REINFORCE, DQN, ACTOR_CRITIC, PPO
 from rl_algos.AGENT import RANDOM_AGENT
 
 
@@ -33,7 +31,7 @@ def run(agent, env, steps, wandb_cb = True,
     '''Train an agent on an env.
     agent : an AGENT instance (with methods act, learn and remember implemented)
     env : a gym env (with methods reset, step, render)
-    episodes : int, number of episodes of training
+    steps : int, number of steps of training
     wandb_cb : bool, whether metrics are logged in WandB
     n_render : int, one episode on n_render is rendered
     '''
@@ -44,7 +42,7 @@ def run(agent, env, steps, wandb_cb = True,
         try:
             from config import project, entity
         except ImportError:
-            raise Exception("You need to specify your WandB ids in config.py\nConfig template is available at div/config_template.py")
+            raise Exception("For ou need to specify your WandB ids in config.py\nConfig template is available at div/config_template.py")
         run = wandb.init(project=project, 
                         entity=entity,
                         config=agent.config,
@@ -91,12 +89,7 @@ if __name__ == "__main__":
     n_side = 84
     n_stack = 4
     env = load_smb_env(obs_complexity=2, n_side = n_side, n_stack = n_stack, n_skip=4)
-    
-    
     n_actions = env.action_space.n
-
-    #METRICS
-    metrics = [Metric_Total_Reward, Metric_Epsilon, Metric_Action_Frequencies, MetricS_On_Learn]
     
     #ACTOR PI
     actor =  nn.Sequential(
@@ -151,16 +144,7 @@ if __name__ == "__main__":
     #RUN
     run(agent, 
         env = env, 
-        steps=500000, 
-        wandb_cb = False,
-        n_render=1,
-        )    
-    
-    
-
-
-
-
-
-
-
+        steps=steps, 
+        wandb_cb = wandb_cb,
+        n_render = n_render,
+        )  
