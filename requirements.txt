@@ -10,6 +10,7 @@ opencv-python
 stable-baselines3[extra]
 gym
 gym-super-mario-bros
+nes-py
 box2d-py
 pyglet
 imageio-ffmpeg

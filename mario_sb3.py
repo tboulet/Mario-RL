@@ -29,6 +29,7 @@ def load_smb_env_blind(obs_complexity = 1, n_side = 84, n_stack = 1, n_skip = 4)
     env = ResizeObservation(env, shape=n_side)  #Resize obs shape to (84, 84) for dimension reduction while keeping sufficient infomation
     env = FrameStack(env, num_stack=n_stack)    #Stack last 4 frames to obtain a (4, 84, 84) array
     env = NumpyingObservation(env)              #Transform obs from LazyFrame to np array
+    # env = DisplayMarioPerspective(env)
     env = SkipFrame(env, n_skip)                #Skip some frames
     env = RedefineRewardInfo(env)               #Redefines reward
     return env
@@ -59,4 +60,5 @@ if __name__ == "__main__":
     env2 = gym_super_mario_bros.make('SuperMarioBros-v3')
     env2 = JoypadSpace(env2, MOVEMENTS)
     
-    #train(env1, "ppo_test", 30)
+    train(env1, "ppo_test", 1000)
+    run("ppo_test", env1)
